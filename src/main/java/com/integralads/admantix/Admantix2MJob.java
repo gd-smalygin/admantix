@@ -3,11 +3,12 @@ package com.integralads.admantix;
 import java.io.IOException;
 import java.util.*;
 
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang.math.RandomUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -46,9 +47,9 @@ public class Admantix2MJob extends Configured implements Tool {
         job.setJarByClass(Admantix2MJob.class);
         job.setMapperClass(AdmantixMapper.class);
         job.setReducerClass(AdmantixReducer.class);
-        job.setOutputKeyClass(Text.class);
+        job.setOutputKeyClass(LongWritable.class);
         job.setOutputValueClass(Text.class);
-        job.setSortComparatorClass(Text.Comparator.class);
+        job.setSortComparatorClass(LongWritable.Comparator.class);
         job.setReduceSpeculativeExecution(false);
         
         job.setNumReduceTasks(1);
@@ -67,30 +68,30 @@ public class Admantix2MJob extends Configured implements Tool {
         return 0;
       }
 
-      private static class AdmantixMapper extends Mapper<Object, Text, Text, Text> {
+      private static class AdmantixMapper extends Mapper<Object, Text, LongWritable, Text> {
           
           @Override
           public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-              context.write(new Text(RandomStringUtils.randomNumeric(6)), value);
+              context.write(new LongWritable(RandomUtils.nextLong()), value);
           }
       }
 
 
-      private static class AdmantixReducer extends Reducer<Text, Text, Text, NullWritable> {
+      private static class AdmantixReducer extends Reducer<LongWritable, Text, Text, NullWritable> {
           
           MultipleOutputs<Text, NullWritable> outputs;
           long N;
           long counter = 0;
           
           @Override
-          protected void setup(Reducer<Text, Text, Text, NullWritable>.Context context)
+          protected void setup(Reducer<LongWritable, Text, Text, NullWritable>.Context context)
                 throws IOException, InterruptedException {
               outputs = new MultipleOutputs<Text, NullWritable>(context);
               N=context.getConfiguration().getLong("N", 0);
           }
           
           @Override
-          public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+          public void reduce(LongWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
               for (Text value : values) {
                   if (counter < N) {
                       outputs.write("admantix", value, NullWritable.get());
@@ -100,7 +101,7 @@ public class Admantix2MJob extends Configured implements Tool {
           }
           
           @Override
-          protected void cleanup(Reducer<Text, Text, Text, NullWritable>.Context context)
+          protected void cleanup(Reducer<LongWritable, Text, Text, NullWritable>.Context context)
                 throws IOException, InterruptedException {
               outputs.close();
           }
